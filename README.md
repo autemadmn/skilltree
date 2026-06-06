@@ -9,6 +9,10 @@ npm install
 npm run dev
 ```
 
+## Desktop launcher
+
+`scripts/Start-NeuralSkillTree.ps1` starts the local Vite server on `http://127.0.0.1:5305/` if needed, then opens the app in the default browser. The Windows desktop shortcut can point to this script and use `public/icons/SKDesk.ico` as its icon.
+
 ## BookOpen model
 
 The provided archive is expected at:
