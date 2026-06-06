@@ -182,6 +182,14 @@ button:disabled {
   cursor: pointer;
 }
 
+.is-camera-traveling {
+  cursor: grabbing;
+}
+
+.is-rotating-camera {
+  cursor: move;
+}
+
 .section-menu {
   position: absolute;
   top: 20px;

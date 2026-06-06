@@ -43,6 +43,7 @@ export function CoreOrb({ node, isSelected, isHovered, isHighlighted, isDimmed }
 
   const handleSelect = (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation();
+    if (event.delta > 6) return;
     selectOrb(node.id);
   };
 
@@ -53,6 +54,7 @@ export function CoreOrb({ node, isSelected, isHovered, isHighlighted, isDimmed }
       onClick={handleSelect}
       onDoubleClick={(event) => {
         event.stopPropagation();
+        if (event.delta > 6) return;
         openInterior(node.id);
       }}
       onPointerOver={(event) => {

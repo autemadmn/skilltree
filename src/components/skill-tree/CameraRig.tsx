@@ -8,13 +8,30 @@ import { tupleToVector } from "../../utils/geometry";
 
 type OrbitControlsImpl = ElementRef<typeof OrbitControls>;
 
+const MIN_ORBIT_DISTANCE = 3.2;
+const BASE_MAX_ORBIT_DISTANCE = 128;
+const DRAG_THRESHOLD_PX = 5;
+
 export function CameraRig() {
   const controlsRef = useRef<OrbitControlsImpl>(null);
-  const { camera } = useThree();
+  const { camera, gl } = useThree();
   const orbs = useKnowledgeStore((state) => state.orbs);
   const focusedOrbId = useKnowledgeStore((state) => state.focusedOrbId);
   const requestVersion = useKnowledgeStore((state) => state.cameraRequestVersion);
   const reducedMotion = useKnowledgeStore((state) => state.settings.reducedMotion);
+  const zoomVelocity = useRef(0);
+  const travelVelocity = useRef(new THREE.Vector3());
+  const dragState = useRef({
+    active: false,
+    moved: false,
+    lastX: 0,
+    lastY: 0,
+    totalMovement: 0
+  });
+  const scratchForward = useRef(new THREE.Vector3());
+  const scratchRight = useRef(new THREE.Vector3());
+  const scratchMove = useRef(new THREE.Vector3());
+  const scratchDirection = useRef(new THREE.Vector3());
   const animation = useRef({
     active: false,
     elapsed: 0,
@@ -24,6 +41,13 @@ export function CameraRig() {
     fromTarget: new THREE.Vector3(),
     toTarget: new THREE.Vector3()
   });
+
+  const sceneRadius = useMemo(() => {
+    const farthestOrb = Object.values(orbs).reduce((max, orb) => Math.max(max, tupleToVector(orb.position).length()), 0);
+    return Math.max(BASE_MAX_ORBIT_DISTANCE, farthestOrb + 76);
+  }, [orbs]);
+
+  const maxOrbitDistance = useMemo(() => Math.min(320, Math.max(BASE_MAX_ORBIT_DISTANCE, sceneRadius * 1.35)), [sceneRadius]);
 
   const targetData = useMemo(() => {
     if (!focusedOrbId) {
@@ -51,7 +75,113 @@ export function CameraRig() {
   }, [focusedOrbId, orbs]);
 
   useEffect(() => {
+    const canvas = gl.domElement;
+
+    const stopTravel = () => {
+      dragState.current.active = false;
+      dragState.current.moved = false;
+      document.body.classList.remove("is-camera-traveling");
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.button === 1) {
+        event.preventDefault();
+        document.body.classList.add("is-rotating-camera");
+        return;
+      }
+
+      if (event.button !== 0) return;
+
+      dragState.current = {
+        active: true,
+        moved: false,
+        lastX: event.clientX,
+        lastY: event.clientY,
+        totalMovement: 0
+      };
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const controls = controlsRef.current;
+      if (!controls || !dragState.current.active) return;
+
+      const dx = event.clientX - dragState.current.lastX;
+      const dy = event.clientY - dragState.current.lastY;
+      dragState.current.lastX = event.clientX;
+      dragState.current.lastY = event.clientY;
+      dragState.current.totalMovement += Math.hypot(dx, dy);
+
+      if (dragState.current.totalMovement < DRAG_THRESHOLD_PX) return;
+
+      dragState.current.moved = true;
+      animation.current.active = false;
+      event.preventDefault();
+      document.body.classList.add("is-camera-traveling");
+
+      const distance = camera.position.distanceTo(controls.target);
+      const travelScale = THREE.MathUtils.clamp(distance * 0.0029, 0.018, 0.18);
+      const forward = scratchForward.current;
+      const right = scratchRight.current;
+      const move = scratchMove.current;
+
+      camera.getWorldDirection(forward).normalize();
+      right.crossVectors(forward, camera.up).normalize();
+      move
+        .copy(right)
+        .multiplyScalar(-dx * travelScale)
+        .addScaledVector(forward, -dy * travelScale * 1.42);
+
+      travelVelocity.current.add(move.multiplyScalar(8.5));
+    };
+
+    const handlePointerUp = (event: PointerEvent) => {
+      if (event.button === 1) {
+        document.body.classList.remove("is-rotating-camera");
+        return;
+      }
+
+      if (event.button === 0) stopTravel();
+    };
+
+    const handleWheel = (event: WheelEvent) => {
+      const controls = controlsRef.current;
+      if (!controls) return;
+
+      event.preventDefault();
+      animation.current.active = false;
+
+      const distance = camera.position.distanceTo(controls.target);
+      const wheelSteps = THREE.MathUtils.clamp(event.deltaY / 120, -3, 3);
+      const impulse = distance * 1.35 * wheelSteps;
+      zoomVelocity.current = THREE.MathUtils.clamp(zoomVelocity.current + impulse, -190, 190);
+    };
+
+    const handleAuxClick = (event: MouseEvent) => {
+      if (event.button === 1) event.preventDefault();
+    };
+
+    canvas.addEventListener("pointerdown", handlePointerDown);
+    canvas.addEventListener("wheel", handleWheel, { passive: false });
+    canvas.addEventListener("auxclick", handleAuxClick);
+    window.addEventListener("pointermove", handlePointerMove, { passive: false });
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("blur", stopTravel);
+
+    return () => {
+      canvas.removeEventListener("pointerdown", handlePointerDown);
+      canvas.removeEventListener("wheel", handleWheel);
+      canvas.removeEventListener("auxclick", handleAuxClick);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("blur", stopTravel);
+      document.body.classList.remove("is-camera-traveling", "is-rotating-camera");
+    };
+  }, [camera, gl, maxOrbitDistance]);
+
+  useEffect(() => {
     const controls = controlsRef.current;
+    zoomVelocity.current = 0;
+    travelVelocity.current.set(0, 0, 0);
     animation.current = {
       active: true,
       elapsed: 0,
@@ -76,6 +206,33 @@ export function CameraRig() {
       if (t >= 1) animation.current.active = false;
     }
 
+    if (Math.abs(zoomVelocity.current) > 0.001) {
+      const offset = camera.position.clone().sub(controls.target);
+      const distance = offset.length();
+      if (distance > 0.001) {
+        const nextDistance = THREE.MathUtils.clamp(distance + zoomVelocity.current * delta, MIN_ORBIT_DISTANCE, maxOrbitDistance);
+        offset.setLength(nextDistance);
+        camera.position.copy(controls.target).add(offset);
+      }
+      zoomVelocity.current = THREE.MathUtils.damp(zoomVelocity.current, 0, 8.4, delta);
+    }
+
+    if (travelVelocity.current.lengthSq() > 0.000001) {
+      const move = travelVelocity.current.clone().multiplyScalar(delta);
+      const nextTarget = controls.target.clone().add(move);
+      const nextCamera = camera.position.clone().add(move);
+      const bounds = sceneRadius + maxOrbitDistance * 0.45;
+      if (nextTarget.length() > bounds) {
+        const correction = scratchDirection.current.copy(nextTarget).setLength(bounds).sub(controls.target);
+        controls.target.add(correction);
+        camera.position.add(correction);
+      } else {
+        controls.target.copy(nextTarget);
+        camera.position.copy(nextCamera);
+      }
+      travelVelocity.current.multiplyScalar(Math.pow(0.055, delta));
+    }
+
     controls.update();
   });
 
@@ -83,12 +240,21 @@ export function CameraRig() {
     <OrbitControls
       ref={controlsRef}
       enableDamping
-      dampingFactor={0.075}
-      rotateSpeed={0.52}
-      zoomSpeed={0.62}
-      panSpeed={0.58}
-      minDistance={4}
-      maxDistance={92}
+      dampingFactor={0.105}
+      rotateSpeed={0.92}
+      enableZoom={false}
+      panSpeed={1.15}
+      screenSpacePanning
+      mouseButtons={{
+        MIDDLE: THREE.MOUSE.ROTATE,
+        RIGHT: THREE.MOUSE.PAN
+      }}
+      touches={{
+        ONE: THREE.TOUCH.ROTATE,
+        TWO: THREE.TOUCH.DOLLY_PAN
+      }}
+      minDistance={MIN_ORBIT_DISTANCE}
+      maxDistance={maxOrbitDistance}
       makeDefault
     />
   );
