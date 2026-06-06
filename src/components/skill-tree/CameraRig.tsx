@@ -13,7 +13,7 @@ const MIN_ORBIT_DISTANCE = 3.2;
 const BASE_MAX_ORBIT_DISTANCE = 128;
 const DRAG_THRESHOLD_PX = 5;
 
-type CameraDragMode = "none" | "horizontal" | "planar";
+type CameraDragMode = "none" | "move" | "planar";
 
 export function CameraRig() {
   const controlsRef = useRef<OrbitControlsImpl>(null);
@@ -29,7 +29,6 @@ export function CameraRig() {
   const rotateMultiplier = sensitivityToMultiplier(rotateSensitivity);
   const zoomMultiplier = sensitivityToMultiplier(zoomSensitivity);
   const zoomVelocity = useRef(0);
-  const travelVelocity = useRef(new THREE.Vector3());
   const planarPanVelocity = useRef(new THREE.Vector3());
   const dragState = useRef({
     active: false,
@@ -108,7 +107,7 @@ export function CameraRig() {
 
       dragState.current = {
         active: true,
-        mode: event.button === 2 ? "planar" : "horizontal",
+        mode: event.button === 2 ? "planar" : "move",
         moved: false,
         lastX: event.clientX,
         lastY: event.clientY,
@@ -133,8 +132,8 @@ export function CameraRig() {
       event.preventDefault();
 
       const distance = camera.position.distanceTo(controls.target);
-      const isPlanarPan = dragState.current.mode === "planar";
-      const travelScale = THREE.MathUtils.clamp(distance * (isPlanarPan ? 0.0022 : 0.0029), isPlanarPan ? 0.014 : 0.018, isPlanarPan ? 0.14 : 0.18);
+      const isLeftMove = dragState.current.mode === "move";
+      const travelScale = THREE.MathUtils.clamp(distance * 0.0024, 0.014, 0.16);
       const forward = scratchForward.current;
       const right = scratchRight.current;
       const move = scratchMove.current;
@@ -142,28 +141,15 @@ export function CameraRig() {
       camera.getWorldDirection(forward).normalize();
       right.crossVectors(forward, camera.up).normalize();
 
-      if (isPlanarPan) {
-        const planarRight = scratchPlanarRight.current.copy(right);
-        planarRight.z = 0;
-        if (planarRight.lengthSq() < 0.0001) planarRight.set(1, 0, 0);
-        planarRight.normalize();
+      const planarRight = scratchPlanarRight.current.copy(right);
+      planarRight.z = 0;
+      if (planarRight.lengthSq() < 0.0001) planarRight.set(1, 0, 0);
+      planarRight.normalize();
 
-        move.copy(planarRight).multiplyScalar(-dx * travelScale);
-        move.y += dy * travelScale;
-        move.z = 0;
-        planarPanVelocity.current.add(move.multiplyScalar(8.5));
-        document.body.classList.add("is-camera-panning");
-        return;
-      }
-
-      const horizontalRight = scratchPlanarRight.current.copy(right);
-      horizontalRight.z = 0;
-      if (horizontalRight.lengthSq() < 0.0001) horizontalRight.set(1, 0, 0);
-      horizontalRight.normalize();
-
-      move.copy(horizontalRight).multiplyScalar(-dx * travelScale);
+      move.copy(planarRight).multiplyScalar(-dx * travelScale);
+      move.y += dy * travelScale;
       move.z = 0;
-      travelVelocity.current.add(move.multiplyScalar(8.5 * moveMultiplier));
+      planarPanVelocity.current.add(move.multiplyScalar(8.5 * (isLeftMove ? moveMultiplier : 1)));
       document.body.classList.add("is-camera-panning");
     };
 
@@ -221,7 +207,6 @@ export function CameraRig() {
   useEffect(() => {
     const controls = controlsRef.current;
     zoomVelocity.current = 0;
-    travelVelocity.current.set(0, 0, 0);
     planarPanVelocity.current.set(0, 0, 0);
     animation.current = {
       active: true,
@@ -256,24 +241,6 @@ export function CameraRig() {
         camera.position.copy(controls.target).add(offset);
       }
       zoomVelocity.current = THREE.MathUtils.damp(zoomVelocity.current, 0, 8.4, delta);
-    }
-
-    if (travelVelocity.current.lengthSq() > 0.000001) {
-      const move = travelVelocity.current.clone().multiplyScalar(delta);
-      move.z = 0;
-      const nextTarget = controls.target.clone().add(move);
-      const nextCamera = camera.position.clone().add(move);
-      const bounds = sceneRadius + maxOrbitDistance * 0.45;
-      if (nextTarget.length() > bounds) {
-        const correction = scratchDirection.current.copy(nextTarget).setLength(bounds).sub(controls.target);
-        correction.z = 0;
-        controls.target.add(correction);
-        camera.position.add(correction);
-      } else {
-        controls.target.copy(nextTarget);
-        camera.position.copy(nextCamera);
-      }
-      travelVelocity.current.multiplyScalar(Math.pow(0.055, delta));
     }
 
     if (planarPanVelocity.current.lengthSq() > 0.000001) {
