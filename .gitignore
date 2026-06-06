@@ -1,0 +1,15 @@
+node_modules/
+dist/
+
+*.tsbuildinfo
+vite-*.log
+vite-*.err.log
+vite.config.d.ts
+
+.env
+.env.*
+
+# Extracted texture dump from the supplied BookOpen archive. The app keeps the
+# small model placeholders and documents how to replace/convert the asset later.
+public/models/BookOpen/*.tga
+public/models/BookOpen/Book.FBX
