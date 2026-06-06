@@ -13,6 +13,8 @@ const MIN_ORBIT_DISTANCE = 3.2;
 const BASE_MAX_ORBIT_DISTANCE = 128;
 const DRAG_THRESHOLD_PX = 5;
 
+type CameraDragMode = "none" | "travel" | "planar";
+
 export function CameraRig() {
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const { camera, gl } = useThree();
@@ -28,8 +30,10 @@ export function CameraRig() {
   const zoomMultiplier = sensitivityToMultiplier(zoomSensitivity);
   const zoomVelocity = useRef(0);
   const travelVelocity = useRef(new THREE.Vector3());
+  const planarPanVelocity = useRef(new THREE.Vector3());
   const dragState = useRef({
     active: false,
+    mode: "none" as CameraDragMode,
     moved: false,
     lastX: 0,
     lastY: 0,
@@ -37,6 +41,7 @@ export function CameraRig() {
   });
   const scratchForward = useRef(new THREE.Vector3());
   const scratchRight = useRef(new THREE.Vector3());
+  const scratchPlanarRight = useRef(new THREE.Vector3());
   const scratchMove = useRef(new THREE.Vector3());
   const scratchDirection = useRef(new THREE.Vector3());
   const animation = useRef({
@@ -84,10 +89,11 @@ export function CameraRig() {
   useEffect(() => {
     const canvas = gl.domElement;
 
-    const stopTravel = () => {
+    const stopDrag = () => {
       dragState.current.active = false;
+      dragState.current.mode = "none";
       dragState.current.moved = false;
-      document.body.classList.remove("is-camera-traveling");
+      document.body.classList.remove("is-camera-traveling", "is-camera-panning");
     };
 
     const handlePointerDown = (event: PointerEvent) => {
@@ -97,10 +103,12 @@ export function CameraRig() {
         return;
       }
 
-      if (event.button !== 0) return;
+      if (event.button !== 0 && event.button !== 2) return;
+      event.preventDefault();
 
       dragState.current = {
         active: true,
+        mode: event.button === 2 ? "planar" : "travel",
         moved: false,
         lastX: event.clientX,
         lastY: event.clientY,
@@ -123,22 +131,36 @@ export function CameraRig() {
       dragState.current.moved = true;
       animation.current.active = false;
       event.preventDefault();
-      document.body.classList.add("is-camera-traveling");
 
       const distance = camera.position.distanceTo(controls.target);
-      const travelScale = THREE.MathUtils.clamp(distance * 0.0029, 0.018, 0.18);
+      const isPlanarPan = dragState.current.mode === "planar";
+      const travelScale = THREE.MathUtils.clamp(distance * (isPlanarPan ? 0.0022 : 0.0029), isPlanarPan ? 0.014 : 0.018, isPlanarPan ? 0.14 : 0.18);
       const forward = scratchForward.current;
       const right = scratchRight.current;
       const move = scratchMove.current;
 
+      if (isPlanarPan) {
+        camera.getWorldDirection(forward).normalize();
+        right.crossVectors(forward, camera.up).normalize();
+        const planarRight = scratchPlanarRight.current.copy(right);
+        planarRight.z = 0;
+        if (planarRight.lengthSq() < 0.0001) planarRight.set(1, 0, 0);
+        planarRight.normalize();
+
+        move.copy(planarRight).multiplyScalar(-dx * travelScale);
+        move.y += dy * travelScale;
+        move.z = 0;
+        planarPanVelocity.current.add(move.multiplyScalar(8.5));
+        document.body.classList.add("is-camera-panning");
+        return;
+      }
+
       camera.getWorldDirection(forward).normalize();
       right.crossVectors(forward, camera.up).normalize();
-      move
-        .copy(right)
-        .multiplyScalar(-dx * travelScale)
-        .addScaledVector(forward, -dy * travelScale * 1.42);
+      move.copy(right).multiplyScalar(-dx * travelScale).addScaledVector(forward, -dy * travelScale * 1.42);
 
       travelVelocity.current.add(move.multiplyScalar(8.5 * moveMultiplier));
+      document.body.classList.add("is-camera-traveling");
     };
 
     const handlePointerUp = (event: PointerEvent) => {
@@ -147,7 +169,7 @@ export function CameraRig() {
         return;
       }
 
-      if (event.button === 0) stopTravel();
+      if (event.button === 0 || event.button === 2) stopDrag();
     };
 
     const handleWheel = (event: WheelEvent) => {
@@ -168,21 +190,27 @@ export function CameraRig() {
       if (event.button === 1) event.preventDefault();
     };
 
+    const handleContextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+    };
+
     canvas.addEventListener("pointerdown", handlePointerDown);
     canvas.addEventListener("wheel", handleWheel, { passive: false });
     canvas.addEventListener("auxclick", handleAuxClick);
+    canvas.addEventListener("contextmenu", handleContextMenu);
     window.addEventListener("pointermove", handlePointerMove, { passive: false });
     window.addEventListener("pointerup", handlePointerUp);
-    window.addEventListener("blur", stopTravel);
+    window.addEventListener("blur", stopDrag);
 
     return () => {
       canvas.removeEventListener("pointerdown", handlePointerDown);
       canvas.removeEventListener("wheel", handleWheel);
       canvas.removeEventListener("auxclick", handleAuxClick);
+      canvas.removeEventListener("contextmenu", handleContextMenu);
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
-      window.removeEventListener("blur", stopTravel);
-      document.body.classList.remove("is-camera-traveling", "is-rotating-camera");
+      window.removeEventListener("blur", stopDrag);
+      document.body.classList.remove("is-camera-traveling", "is-camera-panning", "is-rotating-camera");
     };
   }, [camera, gl, moveMultiplier, zoomMultiplier]);
 
@@ -190,6 +218,7 @@ export function CameraRig() {
     const controls = controlsRef.current;
     zoomVelocity.current = 0;
     travelVelocity.current.set(0, 0, 0);
+    planarPanVelocity.current.set(0, 0, 0);
     animation.current = {
       active: true,
       elapsed: 0,
@@ -241,6 +270,24 @@ export function CameraRig() {
       travelVelocity.current.multiplyScalar(Math.pow(0.055, delta));
     }
 
+    if (planarPanVelocity.current.lengthSq() > 0.000001) {
+      const move = planarPanVelocity.current.clone().multiplyScalar(delta);
+      move.z = 0;
+      const nextTarget = controls.target.clone().add(move);
+      const nextCamera = camera.position.clone().add(move);
+      const bounds = sceneRadius + maxOrbitDistance * 0.45;
+      if (nextTarget.length() > bounds) {
+        const correction = scratchDirection.current.copy(nextTarget).setLength(bounds).sub(controls.target);
+        correction.z = 0;
+        controls.target.add(correction);
+        camera.position.add(correction);
+      } else {
+        controls.target.copy(nextTarget);
+        camera.position.copy(nextCamera);
+      }
+      planarPanVelocity.current.multiplyScalar(Math.pow(0.055, delta));
+    }
+
     controls.update();
   });
 
@@ -251,11 +298,9 @@ export function CameraRig() {
       dampingFactor={0.105}
       rotateSpeed={0.92 * rotateMultiplier}
       enableZoom={false}
-      panSpeed={1.15}
-      screenSpacePanning
+      enablePan={false}
       mouseButtons={{
-        MIDDLE: THREE.MOUSE.ROTATE,
-        RIGHT: THREE.MOUSE.PAN
+        MIDDLE: THREE.MOUSE.ROTATE
       }}
       touches={{
         ONE: THREE.TOUCH.ROTATE,

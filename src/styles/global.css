@@ -186,6 +186,10 @@ button:disabled {
   cursor: grabbing;
 }
 
+.is-camera-panning {
+  cursor: all-scroll;
+}
+
 .is-rotating-camera {
   cursor: move;
 }
