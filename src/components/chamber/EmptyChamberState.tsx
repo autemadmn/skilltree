@@ -1,6 +1,7 @@
-import { FilePlus2, NotebookPen, Upload } from "lucide-react";
+import { FilePlus2, NotebookPen } from "lucide-react";
 import { useKnowledgeStore } from "../../store/useKnowledgeStore";
 import type { OrbNode } from "../../types/models";
+import { UploadPdfButton } from "./UploadPdfButton";
 
 export function EmptyChamberState({ orb, compact = false }: { orb: OrbNode; compact?: boolean }) {
   const createDocumentPlaceholder = useKnowledgeStore((state) => state.createDocumentPlaceholder);
@@ -15,10 +16,7 @@ export function EmptyChamberState({ orb, compact = false }: { orb: OrbNode; comp
       <h2>This Knowledge Chamber is empty.</h2>
       <p>Begin by adding your first document, note, or source.</p>
       <div className="empty-actions">
-        <button className="toolbar-button" onClick={() => createDocumentPlaceholder(orb.id, "pdf")}>
-          <Upload size={16} />
-          Upload PDF
-        </button>
+        <UploadPdfButton orbId={orb.id} />
         <button className="toolbar-button primary" onClick={() => createNote(orb.id)}>
           <NotebookPen size={16} />
           Write Note

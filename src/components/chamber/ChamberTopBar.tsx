@@ -1,6 +1,7 @@
-import { FilePlus2, Grid2X2, LayoutList, NotebookPen, Search, Upload } from "lucide-react";
+import { FilePlus2, Grid2X2, LayoutList, NotebookPen, Search } from "lucide-react";
 import { useKnowledgeStore } from "../../store/useKnowledgeStore";
 import type { OrbNode } from "../../types/models";
+import { UploadPdfButton } from "./UploadPdfButton";
 
 export function ChamberTopBar({ orb }: { orb: OrbNode }) {
   const chamberSearch = useKnowledgeStore((state) => state.chamberSearch);
@@ -25,10 +26,7 @@ export function ChamberTopBar({ orb }: { orb: OrbNode }) {
       </div>
 
       <div className="chamber-actions">
-        <button className="toolbar-button" onClick={() => createDocumentPlaceholder(orb.id, "pdf")}>
-          <Upload size={16} />
-          Upload PDF
-        </button>
+        <UploadPdfButton orbId={orb.id} />
         <button className="toolbar-button primary" onClick={() => createNote(orb.id)}>
           <NotebookPen size={16} />
           New Note

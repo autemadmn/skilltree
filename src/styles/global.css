@@ -1488,7 +1488,7 @@ button:disabled {
   display: grid;
   place-items: center;
   padding: 18px;
-  background: rgba(0, 0, 0, 0.44);
+  background: rgba(0, 0, 0, 0.6);
 }
 
 .settings-panel {
@@ -1498,9 +1498,92 @@ button:disabled {
   padding: 18px;
 }
 
+.settings-panel.glass-panel {
+  background:
+    linear-gradient(180deg, rgba(13, 25, 52, 0.94), rgba(4, 9, 22, 0.92)),
+    #071022;
+}
+
 .settings-panel.inline {
   width: 100%;
   max-height: none;
+}
+
+.local-vault-card {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid rgba(127, 199, 255, 0.18);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 15% 0%, rgba(124, 92, 255, 0.16), transparent 34%),
+    radial-gradient(circle at 88% 12%, rgba(24, 245, 214, 0.1), transparent 30%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.local-vault-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.local-vault-heading h3 {
+  margin: 2px 0 0;
+  color: var(--text);
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+
+.vault-status-dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.24);
+  box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.04);
+}
+
+.vault-status-dot.connected {
+  background: #36f4c7;
+  box-shadow: 0 0 18px rgba(54, 244, 199, 0.62), 0 0 0 5px rgba(54, 244, 199, 0.1);
+}
+
+.vault-description,
+.vault-message {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.vault-message.error {
+  color: #ffb0b2;
+}
+
+.vault-meta {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 12px;
+  padding: 10px;
+  border: 1px solid rgba(190, 218, 255, 0.1);
+  border-radius: 7px;
+  background: rgba(2, 8, 20, 0.32);
+  font-size: 0.78rem;
+}
+
+.vault-meta span {
+  color: var(--text-soft);
+}
+
+.vault-meta strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .settings-actions {
@@ -1508,6 +1591,15 @@ button:disabled {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 16px;
+}
+
+.settings-actions.compact {
+  margin-top: 0;
+}
+
+.toolbar-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .chamber-settings-surface {

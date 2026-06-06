@@ -1,7 +1,8 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Download, RotateCcw, Upload, X } from "lucide-react";
+import { Download, FolderOpen, RotateCcw, Save, Upload, X } from "lucide-react";
 import { ChangeEvent, useRef } from "react";
 import { useKnowledgeStore } from "../../store/useKnowledgeStore";
+import { useLocalVaultActions } from "../../utils/localVault";
 
 export function SettingsPanel({ inline = false }: { inline?: boolean }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -12,6 +13,9 @@ export function SettingsPanel({ inline = false }: { inline?: boolean }) {
   const resetDemoData = useKnowledgeStore((state) => state.resetDemoData);
   const exportSnapshot = useKnowledgeStore((state) => state.exportSnapshot);
   const importSnapshot = useKnowledgeStore((state) => state.importSnapshot);
+  const { status: vaultStatus, connectAndSave, disconnect, loadNow, saveNow } = useLocalVaultActions();
+  const vaultBusy = vaultStatus.phase === "connecting" || vaultStatus.phase === "saving" || vaultStatus.phase === "loading";
+  const lastSavedLabel = vaultStatus.lastSavedAt ? new Date(vaultStatus.lastSavedAt).toLocaleString() : "Not saved this session";
 
   const handleExport = () => {
     const blob = new Blob([exportSnapshot()], { type: "application/json" });
@@ -29,6 +33,11 @@ export function SettingsPanel({ inline = false }: { inline?: boolean }) {
     const text = await file.text();
     importSnapshot(text);
     event.target.value = "";
+  };
+
+  const handleVaultLoad = async () => {
+    if (!window.confirm("Load the local vault and replace the current in-browser state?")) return;
+    await loadNow();
   };
 
   const content = (
@@ -91,6 +100,44 @@ export function SettingsPanel({ inline = false }: { inline?: boolean }) {
           />
           <span>Reduced motion</span>
         </label>
+      </div>
+
+      <div className="local-vault-card">
+        <div className="local-vault-heading">
+          <div>
+            <p className="eyebrow">Portable Local Vault</p>
+            <h3>Folder-backed archive</h3>
+          </div>
+          <span className={`vault-status-dot ${vaultStatus.connected ? "connected" : ""}`} />
+        </div>
+        <p className="vault-description">
+          Save a portable copy of your universe to a folder on this computer. Copy that folder to move the app data to another machine.
+        </p>
+        <div className="vault-meta">
+          <span>Folder</span>
+          <strong>{vaultStatus.connected ? vaultStatus.directoryName : vaultStatus.supported ? "Not connected" : "Browser not supported"}</strong>
+          <span>Last saved</span>
+          <strong>{lastSavedLabel}</strong>
+        </div>
+        {vaultStatus.message && <p className={`vault-message ${vaultStatus.phase === "error" ? "error" : ""}`}>{vaultStatus.message}</p>}
+        <div className="settings-actions compact">
+          <button className="toolbar-button primary" disabled={!vaultStatus.supported || vaultBusy} onClick={() => void connectAndSave()}>
+            <FolderOpen size={16} />
+            Connect Folder
+          </button>
+          <button className="toolbar-button" disabled={!vaultStatus.connected || vaultBusy} onClick={() => void saveNow()}>
+            <Save size={16} />
+            Save Now
+          </button>
+          <button className="toolbar-button" disabled={!vaultStatus.connected || vaultBusy} onClick={() => void handleVaultLoad()}>
+            <Upload size={16} />
+            Load Vault
+          </button>
+          <button className="toolbar-button" disabled={!vaultStatus.connected || vaultBusy} onClick={() => void disconnect()}>
+            <X size={16} />
+            Disconnect
+          </button>
+        </div>
       </div>
 
       <div className="settings-actions">

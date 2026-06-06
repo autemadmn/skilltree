@@ -16,6 +16,15 @@ import type {
 
 export type ChamberView = "overview" | "library" | "pdfs" | "notes" | "favorites" | "recent" | "linked" | "canvas" | "settings";
 
+type UploadedPdfInput = {
+  vaultPath: string;
+  originalFileName: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  savedAt: string;
+};
+
 interface KnowledgeState extends KnowledgeSnapshot {
   appMode: AppMode;
   selectedOrbId: string;
@@ -53,6 +62,7 @@ interface KnowledgeState extends KnowledgeSnapshot {
   setSelectedDocument: (id: string | null) => void;
   setFullScreenReader: (enabled: boolean) => void;
   createDocumentPlaceholder: (orbId: string, type: Exclude<DocumentType, "note" | "reflection" | "quote">) => string;
+  createUploadedPdf: (orbId: string, file: UploadedPdfInput) => string;
   createNote: (orbId: string) => string;
   updateDocument: (id: string, patch: Partial<KnowledgeDocument>) => void;
   resetDemoData: () => void;
@@ -99,7 +109,7 @@ function getRecursiveOrbIds(orbs: Record<string, OrbNode>, rootId: string) {
   return ids;
 }
 
-function withBaseUi(snapshot: KnowledgeSnapshot): Omit<KnowledgeState, keyof KnowledgeSnapshot | "setMode" | "selectOrb" | "hoverOrb" | "focusOrb" | "resetCamera" | "openInterior" | "openKnowledgeChamber" | "returnToSkillTree" | "setAddOrbOpen" | "addOrb" | "updateOrb" | "addRelatedConnection" | "deleteOrb" | "setSearchTerm" | "setSettingsOpen" | "updateSettings" | "setChamberView" | "setChamberSearch" | "setSelectedDocument" | "setFullScreenReader" | "createDocumentPlaceholder" | "createNote" | "updateDocument" | "resetDemoData" | "exportSnapshot" | "importSnapshot"> {
+function withBaseUi(snapshot: KnowledgeSnapshot): Omit<KnowledgeState, keyof KnowledgeSnapshot | "setMode" | "selectOrb" | "hoverOrb" | "focusOrb" | "resetCamera" | "openInterior" | "openKnowledgeChamber" | "returnToSkillTree" | "setAddOrbOpen" | "addOrb" | "updateOrb" | "addRelatedConnection" | "deleteOrb" | "setSearchTerm" | "setSettingsOpen" | "updateSettings" | "setChamberView" | "setChamberSearch" | "setSelectedDocument" | "setFullScreenReader" | "createDocumentPlaceholder" | "createUploadedPdf" | "createNote" | "updateDocument" | "resetDemoData" | "exportSnapshot" | "importSnapshot"> {
   return {
     appMode: "skill-tree",
     selectedOrbId: "curiosity-core",
@@ -382,6 +392,58 @@ export const useKnowledgeStore = create<KnowledgeState>()(
             chamberView: "library",
             activities: [
               { id: `activity-${Date.now()}`, orbId, documentId: id, action: `Created ${type}`, createdAt: now() },
+              ...state.activities
+            ]
+          });
+          return id;
+        },
+        createUploadedPdf: (orbId, file) => {
+          const state = get();
+          const orbs = { ...state.orbs };
+          const documents = { ...state.documents };
+          const orb = orbs[orbId];
+          if (!orb) return "";
+          const title = file.originalFileName.replace(/\.[^.]+$/, "") || `${orb.title} PDF`;
+          const id = uniqueId(`${title}-${Date.now()}`, documents);
+          const document: KnowledgeDocument = {
+            id,
+            orbId,
+            title,
+            type: "pdf",
+            subtitle: "Stored in the portable local vault",
+            tags: [orb.title.toLowerCase(), "pdf"],
+            createdAt: now(),
+            updatedAt: now(),
+            thumbnail: "PDF",
+            fileUrl: `vault://${file.vaultPath}`,
+            metadata: {
+              pages: 1,
+              readingTime: "Ready to read",
+              summary: "This PDF has been copied into the selected local vault folder.",
+              originalFileName: file.originalFileName,
+              vaultPath: file.vaultPath,
+              fileSize: file.fileSize,
+              mimeType: file.mimeType,
+              savedAt: file.savedAt
+            },
+            favorite: false,
+            relatedOrbIds: [orbId],
+            relatedDocumentIds: []
+          };
+          documents[id] = document;
+          orbs[orbId] = {
+            ...orb,
+            documentIds: [...orb.documentIds, id],
+            updatedAt: now(),
+            status: "active"
+          };
+          set({
+            orbs,
+            documents,
+            selectedDocumentId: id,
+            chamberView: "pdfs",
+            activities: [
+              { id: `activity-${Date.now()}`, orbId, documentId: id, action: "Uploaded PDF to vault", createdAt: now() },
               ...state.activities
             ]
           });

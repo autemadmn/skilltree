@@ -67,6 +67,11 @@ export interface KnowledgeDocument {
     author?: string;
     source?: string;
     summary?: string;
+    originalFileName?: string;
+    vaultPath?: string;
+    fileSize?: number;
+    mimeType?: string;
+    savedAt?: string;
   };
   favorite: boolean;
   relatedOrbIds: string[];

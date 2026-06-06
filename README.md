@@ -29,4 +29,16 @@ If the model is missing or cannot load, the app renders a procedural open-book f
 
 ## Persistence
 
-Tree data, documents, notes, and settings are persisted in `localStorage`. Use Settings to reset to the blank starter universe, export JSON, or import a saved archive.
+Tree data, documents, notes, and settings are persisted in `localStorage` for quick local use. Use Settings to reset to the blank starter universe, export JSON, or import a saved archive.
+
+### Portable local vault
+
+For a more reliable local-first workflow, open Settings and use **Portable Local Vault**:
+
+1. Click **Connect Folder**.
+2. Choose or create a folder on your computer, for example `Documents/Neural Skill Tree Vault`.
+3. The app writes `skilltree-vault.json` into that folder.
+4. Copy that folder to move your universe to another computer.
+5. On the new computer, run the app, connect the copied folder, and click **Load Vault**.
+
+The vault stores the skill tree, connections, notes, document records, text content, activity, and settings. When the vault is connected, uploaded PDFs are copied into a `documents/` folder beside `skilltree-vault.json`, and the document record stores the portable vault path. The PDF reader is still a polished placeholder that can later be replaced with `react-pdf`/PDF.js for true page rendering.

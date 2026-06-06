@@ -52,6 +52,7 @@ export function PDFReader({ document }: { document: KnowledgeDocument }) {
             <div />
             <div />
           </div>
+          {document.metadata.vaultPath && <div className="mock-annotation">Vault file: {document.metadata.vaultPath}</div>}
           <div className="mock-annotation">Annotation-ready layer</div>
         </article>
       </div>
