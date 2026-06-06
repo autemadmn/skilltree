@@ -13,7 +13,7 @@ const MIN_ORBIT_DISTANCE = 3.2;
 const BASE_MAX_ORBIT_DISTANCE = 128;
 const DRAG_THRESHOLD_PX = 5;
 
-type CameraDragMode = "none" | "travel" | "planar";
+type CameraDragMode = "none" | "horizontal" | "planar";
 
 export function CameraRig() {
   const controlsRef = useRef<OrbitControlsImpl>(null);
@@ -108,7 +108,7 @@ export function CameraRig() {
 
       dragState.current = {
         active: true,
-        mode: event.button === 2 ? "planar" : "travel",
+        mode: event.button === 2 ? "planar" : "horizontal",
         moved: false,
         lastX: event.clientX,
         lastY: event.clientY,
@@ -139,9 +139,10 @@ export function CameraRig() {
       const right = scratchRight.current;
       const move = scratchMove.current;
 
+      camera.getWorldDirection(forward).normalize();
+      right.crossVectors(forward, camera.up).normalize();
+
       if (isPlanarPan) {
-        camera.getWorldDirection(forward).normalize();
-        right.crossVectors(forward, camera.up).normalize();
         const planarRight = scratchPlanarRight.current.copy(right);
         planarRight.z = 0;
         if (planarRight.lengthSq() < 0.0001) planarRight.set(1, 0, 0);
@@ -155,12 +156,15 @@ export function CameraRig() {
         return;
       }
 
-      camera.getWorldDirection(forward).normalize();
-      right.crossVectors(forward, camera.up).normalize();
-      move.copy(right).multiplyScalar(-dx * travelScale).addScaledVector(forward, -dy * travelScale * 1.42);
+      const horizontalRight = scratchPlanarRight.current.copy(right);
+      horizontalRight.z = 0;
+      if (horizontalRight.lengthSq() < 0.0001) horizontalRight.set(1, 0, 0);
+      horizontalRight.normalize();
 
+      move.copy(horizontalRight).multiplyScalar(-dx * travelScale);
+      move.z = 0;
       travelVelocity.current.add(move.multiplyScalar(8.5 * moveMultiplier));
-      document.body.classList.add("is-camera-traveling");
+      document.body.classList.add("is-camera-panning");
     };
 
     const handlePointerUp = (event: PointerEvent) => {
@@ -256,11 +260,13 @@ export function CameraRig() {
 
     if (travelVelocity.current.lengthSq() > 0.000001) {
       const move = travelVelocity.current.clone().multiplyScalar(delta);
+      move.z = 0;
       const nextTarget = controls.target.clone().add(move);
       const nextCamera = camera.position.clone().add(move);
       const bounds = sceneRadius + maxOrbitDistance * 0.45;
       if (nextTarget.length() > bounds) {
         const correction = scratchDirection.current.copy(nextTarget).setLength(bounds).sub(controls.target);
+        correction.z = 0;
         controls.target.add(correction);
         camera.position.add(correction);
       } else {
