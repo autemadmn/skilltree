@@ -1,4 +1,5 @@
 import { SECTION_COLORS } from "../utils/colors";
+import { DEFAULT_NAVIGATION_SENSITIVITY } from "../utils/navigationSensitivity";
 import type { KnowledgeSnapshot, OrbNode, UserSettings } from "../types/models";
 
 function timestamp() {
@@ -10,7 +11,10 @@ const settings: UserSettings = {
   reducedMotion: true,
   autoFocusOnSelect: true,
   showLabels: "minimal",
-  libraryLayout: "grid"
+  libraryLayout: "grid",
+  navigationMoveSensitivity: DEFAULT_NAVIGATION_SENSITIVITY,
+  navigationRotateSensitivity: DEFAULT_NAVIGATION_SENSITIVITY,
+  navigationZoomSensitivity: DEFAULT_NAVIGATION_SENSITIVITY
 };
 
 function createNode(input: Partial<OrbNode> & Pick<OrbNode, "id" | "title" | "description" | "color" | "position" | "type">): OrbNode {

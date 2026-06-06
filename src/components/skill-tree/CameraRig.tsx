@@ -5,6 +5,7 @@ import type { ElementRef } from "react";
 import * as THREE from "three";
 import { useKnowledgeStore } from "../../store/useKnowledgeStore";
 import { tupleToVector } from "../../utils/geometry";
+import { sensitivityToMultiplier } from "../../utils/navigationSensitivity";
 
 type OrbitControlsImpl = ElementRef<typeof OrbitControls>;
 
@@ -19,6 +20,12 @@ export function CameraRig() {
   const focusedOrbId = useKnowledgeStore((state) => state.focusedOrbId);
   const requestVersion = useKnowledgeStore((state) => state.cameraRequestVersion);
   const reducedMotion = useKnowledgeStore((state) => state.settings.reducedMotion);
+  const moveSensitivity = useKnowledgeStore((state) => state.settings.navigationMoveSensitivity);
+  const rotateSensitivity = useKnowledgeStore((state) => state.settings.navigationRotateSensitivity);
+  const zoomSensitivity = useKnowledgeStore((state) => state.settings.navigationZoomSensitivity);
+  const moveMultiplier = sensitivityToMultiplier(moveSensitivity);
+  const rotateMultiplier = sensitivityToMultiplier(rotateSensitivity);
+  const zoomMultiplier = sensitivityToMultiplier(zoomSensitivity);
   const zoomVelocity = useRef(0);
   const travelVelocity = useRef(new THREE.Vector3());
   const dragState = useRef({
@@ -131,7 +138,7 @@ export function CameraRig() {
         .multiplyScalar(-dx * travelScale)
         .addScaledVector(forward, -dy * travelScale * 1.42);
 
-      travelVelocity.current.add(move.multiplyScalar(8.5));
+      travelVelocity.current.add(move.multiplyScalar(8.5 * moveMultiplier));
     };
 
     const handlePointerUp = (event: PointerEvent) => {
@@ -152,8 +159,9 @@ export function CameraRig() {
 
       const distance = camera.position.distanceTo(controls.target);
       const wheelSteps = THREE.MathUtils.clamp(event.deltaY / 120, -3, 3);
-      const impulse = distance * 1.35 * wheelSteps;
-      zoomVelocity.current = THREE.MathUtils.clamp(zoomVelocity.current + impulse, -190, 190);
+      const impulse = distance * 1.35 * wheelSteps * zoomMultiplier;
+      const maxZoomVelocity = 190 * zoomMultiplier;
+      zoomVelocity.current = THREE.MathUtils.clamp(zoomVelocity.current + impulse, -maxZoomVelocity, maxZoomVelocity);
     };
 
     const handleAuxClick = (event: MouseEvent) => {
@@ -176,7 +184,7 @@ export function CameraRig() {
       window.removeEventListener("blur", stopTravel);
       document.body.classList.remove("is-camera-traveling", "is-rotating-camera");
     };
-  }, [camera, gl, maxOrbitDistance]);
+  }, [camera, gl, moveMultiplier, zoomMultiplier]);
 
   useEffect(() => {
     const controls = controlsRef.current;
@@ -241,7 +249,7 @@ export function CameraRig() {
       ref={controlsRef}
       enableDamping
       dampingFactor={0.105}
-      rotateSpeed={0.92}
+      rotateSpeed={0.92 * rotateMultiplier}
       enableZoom={false}
       panSpeed={1.15}
       screenSpacePanning

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { createDemoData } from "../data/demoData";
 import { generateChildPosition, generateMainSectionPosition, slugify } from "../utils/geometry";
+import { DEFAULT_NAVIGATION_SENSITIVITY } from "../utils/navigationSensitivity";
 import type {
   ActivityItem,
   AddOrbInput,
@@ -94,6 +95,19 @@ function createConnection(source: OrbNode, target: OrbNode, type: OrbConnection[
     strength: type === "parent-child" ? 1 : 0.44,
     color: target.color || source.color,
     label
+  };
+}
+
+function normalizeSettings(settings: Partial<UserSettings> | undefined): UserSettings {
+  return {
+    bloomIntensity: settings?.bloomIntensity ?? 0,
+    reducedMotion: settings?.reducedMotion ?? true,
+    autoFocusOnSelect: settings?.autoFocusOnSelect ?? true,
+    showLabels: settings?.showLabels ?? "minimal",
+    libraryLayout: settings?.libraryLayout ?? "grid",
+    navigationMoveSensitivity: settings?.navigationMoveSensitivity ?? DEFAULT_NAVIGATION_SENSITIVITY,
+    navigationRotateSensitivity: settings?.navigationRotateSensitivity ?? DEFAULT_NAVIGATION_SENSITIVITY,
+    navigationZoomSensitivity: settings?.navigationZoomSensitivity ?? DEFAULT_NAVIGATION_SENSITIVITY
   };
 }
 
@@ -516,7 +530,7 @@ export const useKnowledgeStore = create<KnowledgeState>()(
               connections: state.connections,
               documents: state.documents,
               activities: state.activities,
-              settings: state.settings
+              settings: normalizeSettings(state.settings)
             },
             null,
             2
@@ -531,7 +545,7 @@ export const useKnowledgeStore = create<KnowledgeState>()(
               connections: parsed.connections,
               documents: parsed.documents,
               activities: parsed.activities ?? [],
-              settings: parsed.settings,
+              settings: normalizeSettings(parsed.settings),
               selectedOrbId: "curiosity-core",
               focusedOrbId: null,
               cameraRequestVersion: get().cameraRequestVersion + 1,
@@ -547,6 +561,14 @@ export const useKnowledgeStore = create<KnowledgeState>()(
     {
       name: "neural-skill-tree-state-empty-v2",
       storage: createJSONStorage(() => localStorage),
+      merge: (persisted, current) => {
+        const persistedState = persisted as Partial<KnowledgeState> | undefined;
+        return {
+          ...current,
+          ...persistedState,
+          settings: normalizeSettings(persistedState?.settings)
+        };
+      },
       partialize: (state) => ({
         orbs: state.orbs,
         connections: state.connections,

@@ -3,6 +3,34 @@ import { Download, FolderOpen, RotateCcw, Save, Upload, X } from "lucide-react";
 import { ChangeEvent, useRef } from "react";
 import { useKnowledgeStore } from "../../store/useKnowledgeStore";
 import { useLocalVaultActions } from "../../utils/localVault";
+import { DEFAULT_NAVIGATION_SENSITIVITY, formatSensitivity } from "../../utils/navigationSensitivity";
+
+function SensitivitySlider({
+  label,
+  value,
+  onChange
+}: {
+  label: string;
+  value: number | undefined;
+  onChange: (value: number) => void;
+}) {
+  const safeValue = value ?? DEFAULT_NAVIGATION_SENSITIVITY;
+
+  return (
+    <label className="sensitivity-control">
+      <span className="sensitivity-label-row">
+        <span>{label}</span>
+        <strong>{formatSensitivity(safeValue)}</strong>
+      </span>
+      <input type="range" min={0} max={100} step={1} value={safeValue} onChange={(event) => onChange(Number(event.target.value))} />
+      <span className="sensitivity-scale">
+        <span>Más lento</span>
+        <span>Actual</span>
+        <span>Más rápido</span>
+      </span>
+    </label>
+  );
+}
 
 export function SettingsPanel({ inline = false }: { inline?: boolean }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -100,6 +128,33 @@ export function SettingsPanel({ inline = false }: { inline?: boolean }) {
           />
           <span>Reduced motion</span>
         </label>
+      </div>
+
+      <div className="camera-controls-card">
+        <div className="local-vault-heading">
+          <div>
+            <p className="eyebrow">Sensibilidad de navegación</p>
+            <h3>Controles de cámara</h3>
+          </div>
+          <span className="camera-controls-pulse" />
+        </div>
+        <div className="settings-group camera-sensitivity-group">
+          <SensitivitySlider
+            label="Movimiento con click izquierdo"
+            value={settings.navigationMoveSensitivity}
+            onChange={(value) => updateSettings({ navigationMoveSensitivity: value })}
+          />
+          <SensitivitySlider
+            label="Rotación con rueda pulsada"
+            value={settings.navigationRotateSensitivity}
+            onChange={(value) => updateSettings({ navigationRotateSensitivity: value })}
+          />
+          <SensitivitySlider
+            label="Zoom con rueda"
+            value={settings.navigationZoomSensitivity}
+            onChange={(value) => updateSettings({ navigationZoomSensitivity: value })}
+          />
+        </div>
       </div>
 
       <div className="local-vault-card">

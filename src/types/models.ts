@@ -119,6 +119,9 @@ export interface UserSettings {
   autoFocusOnSelect: boolean;
   showLabels: "minimal" | "sections" | "all";
   libraryLayout: "grid" | "list";
+  navigationMoveSensitivity: number;
+  navigationRotateSensitivity: number;
+  navigationZoomSensitivity: number;
 }
 
 export interface KnowledgeSnapshot {

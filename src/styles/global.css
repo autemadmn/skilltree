@@ -1517,7 +1517,8 @@ button:disabled {
   max-height: none;
 }
 
-.local-vault-card {
+.local-vault-card,
+.camera-controls-card {
   display: grid;
   gap: 12px;
   margin-top: 16px;
@@ -1527,6 +1528,14 @@ button:disabled {
   background:
     radial-gradient(circle at 15% 0%, rgba(124, 92, 255, 0.16), transparent 34%),
     radial-gradient(circle at 88% 12%, rgba(24, 245, 214, 0.1), transparent 30%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.camera-controls-card {
+  border-color: rgba(126, 183, 255, 0.22);
+  background:
+    radial-gradient(circle at 15% 6%, rgba(126, 183, 255, 0.16), transparent 34%),
+    radial-gradient(circle at 86% 18%, rgba(198, 149, 255, 0.12), transparent 31%),
     rgba(255, 255, 255, 0.045);
 }
 
@@ -1542,6 +1551,67 @@ button:disabled {
   color: var(--text);
   font-size: 1rem;
   letter-spacing: 0;
+}
+
+.camera-controls-pulse {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(190, 218, 255, 0.22);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.88), rgba(126, 183, 255, 0.36) 34%, transparent 62%),
+    rgba(126, 183, 255, 0.08);
+  box-shadow: 0 0 28px rgba(126, 183, 255, 0.26);
+}
+
+.camera-sensitivity-group {
+  gap: 15px;
+}
+
+.sensitivity-control {
+  gap: 9px !important;
+}
+
+.sensitivity-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sensitivity-label-row strong {
+  min-width: 54px;
+  padding: 4px 8px;
+  border: 1px solid rgba(126, 183, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(126, 183, 255, 0.08);
+  color: #eaf4ff;
+  font-size: 0.73rem;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: 0 0 18px rgba(126, 183, 255, 0.08);
+}
+
+.sensitivity-control input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.sensitivity-scale {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  color: var(--text-soft);
+  font-size: 0.68rem;
+  opacity: 0.76;
+}
+
+.sensitivity-scale span:nth-child(2) {
+  text-align: center;
+}
+
+.sensitivity-scale span:nth-child(3) {
+  text-align: right;
 }
 
 .vault-status-dot {
