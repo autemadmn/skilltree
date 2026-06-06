@@ -1,0 +1,24 @@
+{
+  "name": "Neural Skill Tree",
+  "short_name": "Skill Tree",
+  "description": "A personal 3D neural skill tree and futuristic knowledge archive.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#02030b",
+  "theme_color": "#02030b",
+  "icons": [
+    {
+      "src": "/icons/SKDesk-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/SKDesk-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
