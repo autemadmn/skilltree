@@ -13,6 +13,33 @@ npm run dev
 
 `scripts/Start-NeuralSkillTree.ps1` starts the local Vite server on `http://127.0.0.1:5305/` if needed, then opens the app in the default browser. The Windows desktop shortcut can point to this script and use `public/icons/SKDesk.ico` as its icon.
 
+## Desktop app
+
+The project now includes a Tauri desktop shell. This turns the same React/Vite app into a native Windows desktop window using the `SKDesk` icon.
+
+Run the desktop app in development:
+
+```bash
+npm run desktop:dev
+```
+
+Build the Windows installer:
+
+```bash
+npm run build
+npm run desktop:build
+```
+
+The installer output is generated under:
+
+`src-tauri/target/release/bundle/nsis/`
+
+The normal web workflow still works:
+
+```bash
+npm run dev
+```
+
 ## BookOpen model
 
 The provided archive is expected at:
