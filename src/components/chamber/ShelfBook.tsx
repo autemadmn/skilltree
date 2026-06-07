@@ -20,6 +20,24 @@ function getBookColor(document: KnowledgeDocument, index: number) {
   return bookPalette[(index + 3) % bookPalette.length];
 }
 
+function hexToRgb(hex: string) {
+  const normalized = hex.replace("#", "");
+  const full = normalized.length === 3 ? normalized.split("").map((part) => `${part}${part}`).join("") : normalized;
+  const value = Number.parseInt(full, 16);
+  return {
+    r: (value >> 16) & 255,
+    g: (value >> 8) & 255,
+    b: value & 255
+  };
+}
+
+function mix(hex: string, target: "#000000" | "#ffffff", amount: number) {
+  const base = hexToRgb(hex);
+  const end = target === "#ffffff" ? { r: 255, g: 255, b: 255 } : { r: 0, g: 0, b: 0 };
+  const channel = (start: number, finish: number) => Math.round(start + (finish - start) * amount);
+  return `rgb(${channel(base.r, end.r)}, ${channel(base.g, end.g)}, ${channel(base.b, end.b)})`;
+}
+
 export function ShelfBook({
   document,
   index,
@@ -34,6 +52,8 @@ export function ShelfBook({
   onToggleFavorite: (document: KnowledgeDocument) => void;
 }) {
   const open = () => onOpen(document);
+  const bookColor = getBookColor(document, index);
+  const bookDepth = 18 + (index % 3) * 3;
 
   return (
     <motion.article
@@ -42,13 +62,18 @@ export function ShelfBook({
       className={`shelf-book ${opening ? "opening" : ""}`}
       style={
         {
-          "--book-color": getBookColor(document, index),
+          "--book-color": bookColor,
+          "--book-dark": mix(bookColor, "#000000", 0.34),
+          "--book-light": mix(bookColor, "#ffffff", 0.18),
+          "--page-color": document.type === "pdf" ? "#d8bd83" : "#c79c66",
           "--book-width": `${42 + (index % 4) * 7}px`,
-          "--book-height": `${132 + (index % 5) * 10}px`
+          "--book-height": `${132 + (index % 5) * 10}px`,
+          "--book-depth": `${bookDepth}px`,
+          "--book-depth-half": `${bookDepth / 2}px`
         } as CSSProperties
       }
-      whileHover={{ y: -12, zIndex: 5 }}
-      animate={opening ? { rotateY: 86, y: -28, scale: 1.34, zIndex: 10 } : { rotateY: 0, scale: 1 }}
+      whileHover={{ y: -10, z: 18, zIndex: 8 }}
+      animate={opening ? { rotateY: -72, y: -28, z: 230, scale: 1.22, zIndex: 50 } : { rotateY: 0, z: 0, scale: 1 }}
       transition={{ type: "spring", stiffness: 190, damping: 19 }}
       onClick={open}
       onKeyDown={(event: KeyboardEvent<HTMLElement>) => {
@@ -56,12 +81,20 @@ export function ShelfBook({
       }}
       title={document.title}
     >
-      <span className="book-shine" />
-      <span className="book-title">{document.title}</span>
-      <span className="book-type-mark">
-        <TypeIcon document={document} />
-      </span>
-      <span className="book-ridges" />
+      <div className="book-cuboid">
+        <div className="book-face book-spine">
+          <span className="book-shine" />
+          <span className="book-title">{document.title}</span>
+          <span className="book-type-mark">
+            <TypeIcon document={document} />
+          </span>
+          <span className="book-ridges" />
+        </div>
+        <div className="book-face book-side" />
+        <div className="book-face book-top" />
+        <div className="book-face book-bottom" />
+        <div className="book-face book-back" />
+      </div>
       <button
         className={`book-favorite ${document.favorite ? "active" : ""}`}
         title={document.favorite ? "Quitar de favoritos" : "Marcar favorito"}
