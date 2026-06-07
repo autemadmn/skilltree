@@ -50,6 +50,7 @@ function createBookLoader() {
 
 function prepareBookModel(source: THREE.Group, auraColor: string) {
   const clone = source.clone(true);
+  const normalizedGroup = new THREE.Group();
 
   clone.traverse((child) => {
     const mesh = child as THREE.Mesh;
@@ -69,6 +70,7 @@ function prepareBookModel(source: THREE.Group, auraColor: string) {
       if (standard.normalMap) standard.normalMap.needsUpdate = true;
       if ("roughness" in standard) standard.roughness = Math.max(standard.roughness ?? 0.7, 0.72);
       if ("metalness" in standard) standard.metalness = Math.min(standard.metalness ?? 0.04, 0.06);
+      standard.side = THREE.DoubleSide;
       if ("emissive" in standard) {
         standard.emissive = new THREE.Color(auraColor);
         standard.emissiveIntensity = 0.018;
@@ -77,13 +79,16 @@ function prepareBookModel(source: THREE.Group, auraColor: string) {
     });
   });
 
+  clone.updateMatrixWorld(true);
+  // The source FBX has an off-center pivot; normalize by bounds so the wrapper can stay at the portal origin.
   const box = new THREE.Box3().setFromObject(clone);
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
   clone.position.sub(center);
   const maxAxis = Math.max(size.x, size.y, size.z) || 1;
-  clone.scale.setScalar(3.35 / maxAxis);
-  return clone;
+  normalizedGroup.add(clone);
+  normalizedGroup.scale.setScalar(3.35 / maxAxis);
+  return normalizedGroup;
 }
 
 function ProceduralFallbackBook({ auraColor }: { auraColor: string }) {
@@ -163,6 +168,7 @@ export function OpenBookModel({
   }, []);
 
   const preparedModel = useMemo(() => (sourceModel ? prepareBookModel(sourceModel, auraColor) : null), [auraColor, sourceModel]);
+  const isInteractive = visible && Boolean(preparedModel || failed);
 
   useFrame(({ clock }, delta) => {
     if (!groupRef.current) return;
@@ -188,20 +194,27 @@ export function OpenBookModel({
       scale={scale}
       onClick={(event: ThreeEvent<MouseEvent>) => {
         event.stopPropagation();
+        if (!isInteractive) return;
         onClick?.();
       }}
       onPointerEnter={(event: ThreeEvent<PointerEvent>) => {
         event.stopPropagation();
+        if (!isInteractive) return;
         setHovered(true);
         onPointerEnter?.();
       }}
       onPointerLeave={(event: ThreeEvent<PointerEvent>) => {
         event.stopPropagation();
+        if (!isInteractive) return;
         setHovered(false);
         onPointerLeave?.();
       }}
     >
       {preparedModel ? <primitive object={preparedModel} /> : failed ? <ProceduralFallbackBook auraColor={auraColor} /> : null}
+      <mesh>
+        <boxGeometry args={[3.8, 1.05, 2.75]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
     </group>
   );
 }

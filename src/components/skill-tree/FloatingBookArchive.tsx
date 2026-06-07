@@ -7,18 +7,6 @@ import { OpenBookModel } from "./OpenBookModel";
 
 function MagicalRings({ color, hovered, opening }: { color: string; hovered: boolean; opening: boolean }) {
   const groupRef = useRef<THREE.Group>(null);
-  const particles = useMemo(
-    () =>
-      Array.from({ length: 120 }, (_, index) => {
-        const angle = (index / 120) * Math.PI * 2;
-        const radius = 1.7 + (index % 8) * 0.12;
-        return {
-          position: [Math.cos(angle) * radius, Math.sin(index * 1.9) * 0.64, Math.sin(angle) * radius] as [number, number, number],
-          scale: 0.013 + (index % 4) * 0.005
-        };
-      }),
-    []
-  );
 
   useFrame((_, delta) => {
     if (!groupRef.current) return;
@@ -39,19 +27,58 @@ function MagicalRings({ color, hovered, opening }: { color: string; hovered: boo
         <torusGeometry args={[2.65, 0.008, 10, 160]} />
         <meshBasicMaterial color="#b993ff" transparent opacity={secondaryOpacity} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
-      {particles.map((particle, index) => (
-        <mesh key={index} position={particle.position}>
-          <sphereGeometry args={[particle.scale, 8, 8]} />
-          <meshBasicMaterial
-            color={index % 3 === 0 ? "#ffffff" : color}
-            transparent
-            opacity={opening ? 0.9 : hovered ? 0.78 : 0.58}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-          />
-        </mesh>
-      ))}
     </group>
+  );
+}
+
+function ParticleAura({ color, hovered, opening }: { color: string; hovered: boolean; opening: boolean }) {
+  const pointsRef = useRef<THREE.Points>(null);
+  const particleData = useMemo(() => {
+    const count = 128;
+    const positions = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3);
+    const baseColor = new THREE.Color(color);
+    const violet = new THREE.Color("#b993ff");
+    const white = new THREE.Color("#ffffff");
+
+    for (let index = 0; index < count; index += 1) {
+      const angle = (index / count) * Math.PI * 2;
+      const radius = 1.05 + Math.random() * 2.35;
+      const vertical = (Math.random() - 0.5) * 1.42;
+      positions[index * 3] = Math.cos(angle) * radius + (Math.random() - 0.5) * 0.18;
+      positions[index * 3 + 1] = vertical;
+      positions[index * 3 + 2] = Math.sin(angle) * radius * 0.78 + (Math.random() - 0.5) * 0.18;
+
+      const mixed = (index % 5 === 0 ? white : index % 2 === 0 ? baseColor : violet).clone();
+      colors[index * 3] = mixed.r;
+      colors[index * 3 + 1] = mixed.g;
+      colors[index * 3 + 2] = mixed.b;
+    }
+
+    return { positions, colors };
+  }, [color]);
+
+  useFrame(({ clock }, delta) => {
+    if (!pointsRef.current) return;
+    pointsRef.current.rotation.y += delta * (opening ? 0.22 : hovered ? 0.14 : 0.07);
+    pointsRef.current.rotation.x = Math.sin(clock.getElapsedTime() * 0.35) * 0.045;
+  });
+
+  return (
+    <points ref={pointsRef}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" count={particleData.positions.length / 3} array={particleData.positions} itemSize={3} />
+        <bufferAttribute attach="attributes-color" count={particleData.colors.length / 3} array={particleData.colors} itemSize={3} />
+      </bufferGeometry>
+      <pointsMaterial
+        size={opening ? 0.075 : hovered ? 0.065 : 0.052}
+        vertexColors
+        transparent
+        opacity={opening ? 0.72 : hovered ? 0.58 : 0.42}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+      />
+    </points>
   );
 }
 
@@ -123,12 +150,14 @@ export function FloatingBookArchive({
       <pointLight position={[0, 4.2, 4]} color="#b993ff" intensity={hovered ? 4.8 : 3.7} distance={14} />
       <spotLight position={[0, 5.5, 5.2]} angle={0.58} penumbra={0.7} intensity={3.2} color="#f2e0b8" castShadow />
       <BookAura color={orb.color} hovered={hovered} opening={isOpening} />
+      <ParticleAura color={orb.color} hovered={hovered} opening={isOpening} />
       <MagicalRings color={orb.color} hovered={hovered} opening={isOpening} />
+      {/* Tune these if the source model is replaced; OpenBookModel handles pivot centering and scale normalization. */}
       <OpenBookModel
         auraColor={orb.color}
-        position={[0, -0.28, 0]}
-        rotation={[-Math.PI / 2 + 0.24, 0, 0.02]}
-        scale={1.36}
+        position={[0, -0.08, 0]}
+        rotation={[0.22, Math.PI, 0]}
+        scale={1.05}
         opening={isOpening}
         onReady={() => setBookState("ready")}
         onError={() => setBookState("error")}
