@@ -1,5 +1,6 @@
 import { motion, type PanInfo } from "framer-motion";
-import { FileText, Link2, NotebookText, Quote } from "lucide-react";
+import { FileText, Link2, NotebookText, Quote, Trash2 } from "lucide-react";
+import type { KeyboardEvent } from "react";
 import type { KnowledgeDocument } from "../../types/models";
 
 function TypeIcon({ type }: { type: KnowledgeDocument["type"] }) {
@@ -14,23 +15,40 @@ export function CanvasCard({
   position,
   onMove,
   onSelect,
+  onDelete,
   selected
 }: {
   document: KnowledgeDocument;
   position: { x: number; y: number };
   onMove: (id: string, info: PanInfo) => void;
   onSelect: () => void;
+  onDelete: () => void;
   selected: boolean;
 }) {
   return (
-    <motion.button
+    <motion.article
+      role="button"
+      tabIndex={0}
       className={`canvas-card ${selected ? "selected" : ""}`}
       style={{ x: position.x, y: position.y }}
       drag
       dragMomentum={false}
       onDragEnd={(_, info) => onMove(document.id, info)}
       onClick={onSelect}
+      onKeyDown={(event: KeyboardEvent<HTMLElement>) => {
+        if (event.key === "Enter" || event.key === " ") onSelect();
+      }}
     >
+      <button
+        className="canvas-card-delete"
+        title="Eliminar documento"
+        onClick={(event) => {
+          event.stopPropagation();
+          onDelete();
+        }}
+      >
+        <Trash2 size={14} />
+      </button>
       <div className="canvas-card-title">
         <TypeIcon type={document.type} />
         <strong>{document.title}</strong>
@@ -41,6 +59,6 @@ export function CanvasCard({
           <span key={tag}>{tag}</span>
         ))}
       </div>
-    </motion.button>
+    </motion.article>
   );
 }

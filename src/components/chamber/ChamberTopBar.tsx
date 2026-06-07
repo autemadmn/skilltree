@@ -1,64 +1,65 @@
-import { FilePlus2, Grid2X2, LayoutList, NotebookPen, Search } from "lucide-react";
+import { ArrowLeft, Heart, Library, Search, Waypoints } from "lucide-react";
 import { useKnowledgeStore } from "../../store/useKnowledgeStore";
 import type { OrbNode } from "../../types/models";
 import { UploadPdfButton } from "./UploadPdfButton";
 
-export function ChamberTopBar({ orb }: { orb: OrbNode }) {
+export function ChamberTopBar({
+  orb,
+  favoritesOnly,
+  onToggleFavorites
+}: {
+  orb: OrbNode;
+  favoritesOnly: boolean;
+  onToggleFavorites: () => void;
+}) {
+  const chamberView = useKnowledgeStore((state) => state.chamberView);
+  const setChamberView = useKnowledgeStore((state) => state.setChamberView);
   const chamberSearch = useKnowledgeStore((state) => state.chamberSearch);
   const setChamberSearch = useKnowledgeStore((state) => state.setChamberSearch);
-  const createDocumentPlaceholder = useKnowledgeStore((state) => state.createDocumentPlaceholder);
-  const createNote = useKnowledgeStore((state) => state.createNote);
-  const setChamberView = useKnowledgeStore((state) => state.setChamberView);
-  const updateSettings = useKnowledgeStore((state) => state.updateSettings);
-  const libraryLayout = useKnowledgeStore((state) => state.settings.libraryLayout);
+  const returnToSkillTree = useKnowledgeStore((state) => state.returnToSkillTree);
+  const activeView = chamberView === "canvas" ? "canvas" : "library";
 
   return (
-    <header className="chamber-topbar glass-panel">
-      <div className="chamber-title-block">
-        <p className="eyebrow">Archive</p>
-        <h2>{orb.title}</h2>
-        <span>{orb.description}</span>
-      </div>
+    <header className="chamber-topbar bookshelf-topbar">
+      <button className="icon-button" title="Back to Skill Tree" onClick={returnToSkillTree}>
+        <ArrowLeft size={17} />
+      </button>
 
-      <div className="chamber-search">
-        <Search size={16} />
-        <input value={chamberSearch} onChange={(event) => setChamberSearch(event.target.value)} placeholder="Search chamber" />
-      </div>
-
-      <div className="chamber-actions">
-        <UploadPdfButton orbId={orb.id} />
-        <button className="toolbar-button primary" onClick={() => createNote(orb.id)}>
-          <NotebookPen size={16} />
-          New Note
-        </button>
-        <button className="toolbar-button" onClick={() => createDocumentPlaceholder(orb.id, "source")}>
-          <FilePlus2 size={16} />
-          Add Source
-        </button>
-        <div className="segmented-control">
-          <button
-            className={libraryLayout === "grid" ? "active" : ""}
-            onClick={() => {
-              updateSettings({ libraryLayout: "grid" });
-              setChamberView("library");
-            }}
-          >
-            <Grid2X2 size={15} />
-          </button>
-          <button
-            className={libraryLayout === "list" ? "active" : ""}
-            onClick={() => {
-              updateSettings({ libraryLayout: "list" });
-              setChamberView("library");
-            }}
-          >
-            <LayoutList size={15} />
-          </button>
-          <button onClick={() => setChamberView("canvas")}>
-            <Grid2X2 size={15} />
-          </button>
+      <div className="bookshelf-title">
+        <span className="brand-orb small" style={{ background: orb.color }}>
+          <Waypoints size={15} />
+        </span>
+        <div>
+          <p className="eyebrow">Knowledge Chamber</p>
+          <h1>{orb.title}</h1>
         </div>
       </div>
+
+      <nav className="chamber-view-tabs" aria-label="Knowledge Chamber views">
+        <button className={activeView === "library" ? "active" : ""} onClick={() => setChamberView("library")}>
+          <Library size={16} />
+          Library
+        </button>
+        <button className={activeView === "canvas" ? "active" : ""} onClick={() => setChamberView("canvas")}>
+          <Waypoints size={16} />
+          Canvas View
+        </button>
+      </nav>
+
+      {activeView === "library" && (
+        <>
+          <label className="bookshelf-search">
+            <Search size={16} />
+            <input value={chamberSearch} onChange={(event) => setChamberSearch(event.target.value)} placeholder="Buscar libro o PDF" />
+          </label>
+          <button className={`favorite-filter ${favoritesOnly ? "active" : ""}`} onClick={onToggleFavorites}>
+            <Heart size={16} />
+            Favoritos
+          </button>
+        </>
+      )}
+
+      <UploadPdfButton orbId={orb.id} label="Añadir PDF" />
     </header>
   );
 }

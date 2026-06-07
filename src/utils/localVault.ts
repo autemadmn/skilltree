@@ -117,6 +117,17 @@ function sanitizeVaultFileName(name: string) {
   return cleaned || "document.pdf";
 }
 
+async function getFileHandleFromVaultPath(vaultPath: string) {
+  if (!directoryHandle) return null;
+  const parts = vaultPath.split(/[\\/]/).filter(Boolean);
+  if (!parts.length) return null;
+  let currentDirectory = directoryHandle;
+  for (const part of parts.slice(0, -1)) {
+    currentDirectory = await currentDirectory.getDirectoryHandle(part);
+  }
+  return currentDirectory.getFileHandle(parts[parts.length - 1]);
+}
+
 export function subscribeLocalVault(listener: (status: LocalVaultStatus) => void) {
   listeners.add(listener);
   listener(currentStatus);
@@ -281,6 +292,25 @@ export async function saveFileToLocalVault(file: File, folderName = "documents")
     emit({
       phase: "error",
       message: error instanceof Error ? error.message : "Could not copy the file into the local vault."
+    });
+    return null;
+  }
+}
+
+export async function loadVaultFileObjectUrl(vaultPath: string) {
+  if (!directoryHandle) return null;
+
+  try {
+    const allowed = await ensurePermission(directoryHandle);
+    if (!allowed) throw new Error("Folder permission was not granted.");
+    const handle = await getFileHandleFromVaultPath(vaultPath);
+    if (!handle) throw new Error("Vault file path is empty.");
+    const file = await handle.getFile();
+    return URL.createObjectURL(file);
+  } catch (error) {
+    emit({
+      phase: "error",
+      message: error instanceof Error ? error.message : "Could not open the vault file."
     });
     return null;
   }

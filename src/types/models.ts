@@ -49,6 +49,18 @@ export interface OrbConnection {
 
 export type DocumentType = "pdf" | "note" | "quote" | "source" | "reflection";
 
+export interface VisualAttachment {
+  id: string;
+  documentId: string;
+  title: string;
+  description?: string;
+  dataUrl: string;
+  mimeType: string;
+  fileName: string;
+  fileSize: number;
+  createdAt: string;
+}
+
 export interface KnowledgeDocument {
   id: string;
   orbId: string;
@@ -76,6 +88,7 @@ export interface KnowledgeDocument {
   favorite: boolean;
   relatedOrbIds: string[];
   relatedDocumentIds: string[];
+  visualAttachments?: VisualAttachment[];
 }
 
 export interface NoteDocument extends KnowledgeDocument {

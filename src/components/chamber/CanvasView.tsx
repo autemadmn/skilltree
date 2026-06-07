@@ -11,6 +11,7 @@ export function CanvasView({ orb }: { orb: OrbNode }) {
   const documents = useKnowledgeStore((state) => state.documents);
   const selectedDocumentId = useKnowledgeStore((state) => state.selectedDocumentId);
   const setSelectedDocument = useKnowledgeStore((state) => state.setSelectedDocument);
+  const deleteDocument = useKnowledgeStore((state) => state.deleteDocument);
   const [scale, setScale] = useState(1);
   const docs = useMemo(() => orb.documentIds.map((id) => documents[id]).filter(Boolean), [documents, orb.documentIds]);
   const [positions, setPositions] = useState<CardPositions>({});
@@ -31,7 +32,16 @@ export function CanvasView({ orb }: { orb: OrbNode }) {
 
   if (docs.length === 0) return <EmptyChamberState orb={orb} />;
 
-  const links = docs.slice(0, Math.min(6, docs.length - 1)).map((document, index) => [document.id, docs[index + 1].id] as const);
+  const docIds = useMemo(() => new Set(docs.map((document) => document.id)), [docs]);
+  const links = useMemo(
+    () =>
+      docs.flatMap((document) =>
+        document.relatedDocumentIds
+          .filter((targetId) => docIds.has(targetId))
+          .map((targetId) => [document.id, targetId] as const)
+      ),
+    [docIds, docs]
+  );
 
   return (
     <section className="canvas-view glass-panel">
@@ -75,6 +85,7 @@ export function CanvasView({ orb }: { orb: OrbNode }) {
               position={positions[document.id] ?? { x: 0, y: 0 }}
               selected={selectedDocumentId === document.id}
               onSelect={() => setSelectedDocument(document.id)}
+              onDelete={() => deleteDocument(document.id)}
               onMove={(id, info) =>
                 setPositions((current) => ({
                   ...current,

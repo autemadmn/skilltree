@@ -12,7 +12,8 @@ import type {
   KnowledgeSnapshot,
   OrbConnection,
   OrbNode,
-  UserSettings
+  UserSettings,
+  VisualAttachment
 } from "../types/models";
 
 export type ChamberView = "overview" | "library" | "pdfs" | "notes" | "favorites" | "recent" | "linked" | "canvas" | "settings";
@@ -66,6 +67,10 @@ interface KnowledgeState extends KnowledgeSnapshot {
   createUploadedPdf: (orbId: string, file: UploadedPdfInput) => string;
   createNote: (orbId: string) => string;
   updateDocument: (id: string, patch: Partial<KnowledgeDocument>) => void;
+  deleteDocument: (id: string) => void;
+  addDocumentVisualAttachment: (documentId: string, attachment: Omit<VisualAttachment, "documentId" | "createdAt">) => void;
+  updateDocumentVisualAttachment: (documentId: string, attachmentId: string, patch: Partial<Pick<VisualAttachment, "title" | "description">>) => void;
+  deleteDocumentVisualAttachment: (documentId: string, attachmentId: string) => void;
   resetDemoData: () => void;
   exportSnapshot: () => string;
   importSnapshot: (rawJson: string) => boolean;
@@ -123,7 +128,7 @@ function getRecursiveOrbIds(orbs: Record<string, OrbNode>, rootId: string) {
   return ids;
 }
 
-function withBaseUi(snapshot: KnowledgeSnapshot): Omit<KnowledgeState, keyof KnowledgeSnapshot | "setMode" | "selectOrb" | "hoverOrb" | "focusOrb" | "resetCamera" | "openInterior" | "openKnowledgeChamber" | "returnToSkillTree" | "setAddOrbOpen" | "addOrb" | "updateOrb" | "addRelatedConnection" | "deleteOrb" | "setSearchTerm" | "setSettingsOpen" | "updateSettings" | "setChamberView" | "setChamberSearch" | "setSelectedDocument" | "setFullScreenReader" | "createDocumentPlaceholder" | "createUploadedPdf" | "createNote" | "updateDocument" | "resetDemoData" | "exportSnapshot" | "importSnapshot"> {
+function withBaseUi(snapshot: KnowledgeSnapshot): Omit<KnowledgeState, keyof KnowledgeSnapshot | "setMode" | "selectOrb" | "hoverOrb" | "focusOrb" | "resetCamera" | "openInterior" | "openKnowledgeChamber" | "returnToSkillTree" | "setAddOrbOpen" | "addOrb" | "updateOrb" | "addRelatedConnection" | "deleteOrb" | "setSearchTerm" | "setSettingsOpen" | "updateSettings" | "setChamberView" | "setChamberSearch" | "setSelectedDocument" | "setFullScreenReader" | "createDocumentPlaceholder" | "createUploadedPdf" | "createNote" | "updateDocument" | "deleteDocument" | "addDocumentVisualAttachment" | "updateDocumentVisualAttachment" | "deleteDocumentVisualAttachment" | "resetDemoData" | "exportSnapshot" | "importSnapshot"> {
   return {
     appMode: "skill-tree",
     selectedOrbId: "curiosity-core",
@@ -455,7 +460,7 @@ export const useKnowledgeStore = create<KnowledgeState>()(
             orbs,
             documents,
             selectedDocumentId: id,
-            chamberView: "pdfs",
+            chamberView: "library",
             activities: [
               { id: `activity-${Date.now()}`, orbId, documentId: id, action: "Uploaded PDF to vault", createdAt: now() },
               ...state.activities
@@ -499,7 +504,7 @@ export const useKnowledgeStore = create<KnowledgeState>()(
             orbs,
             documents,
             selectedDocumentId: id,
-            chamberView: "notes",
+            chamberView: "library",
             activities: [
               { id: `activity-${Date.now()}`, orbId, documentId: id, action: "Created note", createdAt: now() },
               ...state.activities
@@ -515,6 +520,101 @@ export const useKnowledgeStore = create<KnowledgeState>()(
               documents: {
                 ...state.documents,
                 [id]: { ...document, ...patch, updatedAt: now() }
+              }
+            };
+          }),
+        deleteDocument: (id) =>
+          set((state) => {
+            const document = state.documents[id];
+            if (!document) return state;
+            const documents = { ...state.documents };
+            delete documents[id];
+            Object.keys(documents).forEach((documentId) => {
+              const current = documents[documentId];
+              documents[documentId] = {
+                ...current,
+                relatedDocumentIds: current.relatedDocumentIds.filter((relatedId) => relatedId !== id),
+                updatedAt: current.relatedDocumentIds.includes(id) ? now() : current.updatedAt
+              };
+            });
+
+            const orb = state.orbs[document.orbId];
+            const orbs = orb
+              ? {
+                  ...state.orbs,
+                  [document.orbId]: {
+                    ...orb,
+                    documentIds: orb.documentIds.filter((documentId) => documentId !== id),
+                    noteIds: orb.noteIds.filter((documentId) => documentId !== id),
+                    updatedAt: now(),
+                    status: orb.documentIds.length <= 1 ? "empty" : orb.status
+                  }
+                }
+              : state.orbs;
+            const nextSelected = state.selectedDocumentId === id ? orbs[document.orbId]?.documentIds.find((documentId) => documentId !== id) ?? null : state.selectedDocumentId;
+
+            return {
+              documents,
+              orbs,
+              selectedDocumentId: nextSelected,
+              activities: [
+                { id: `activity-${Date.now()}`, orbId: document.orbId, documentId: id, action: "Deleted document", createdAt: now() },
+                ...state.activities
+              ]
+            };
+          }),
+        addDocumentVisualAttachment: (documentId, attachment) =>
+          set((state) => {
+            const document = state.documents[documentId];
+            if (!document) return state;
+            const visualAttachments = [
+              ...(document.visualAttachments ?? []),
+              {
+                ...attachment,
+                documentId,
+                createdAt: now()
+              }
+            ];
+            return {
+              documents: {
+                ...state.documents,
+                [documentId]: {
+                  ...document,
+                  visualAttachments,
+                  updatedAt: now()
+                }
+              }
+            };
+          }),
+        updateDocumentVisualAttachment: (documentId, attachmentId, patch) =>
+          set((state) => {
+            const document = state.documents[documentId];
+            if (!document) return state;
+            return {
+              documents: {
+                ...state.documents,
+                [documentId]: {
+                  ...document,
+                  visualAttachments: (document.visualAttachments ?? []).map((attachment) =>
+                    attachment.id === attachmentId ? { ...attachment, ...patch } : attachment
+                  ),
+                  updatedAt: now()
+                }
+              }
+            };
+          }),
+        deleteDocumentVisualAttachment: (documentId, attachmentId) =>
+          set((state) => {
+            const document = state.documents[documentId];
+            if (!document) return state;
+            return {
+              documents: {
+                ...state.documents,
+                [documentId]: {
+                  ...document,
+                  visualAttachments: (document.visualAttachments ?? []).filter((attachment) => attachment.id !== attachmentId),
+                  updatedAt: now()
+                }
               }
             };
           }),
