@@ -54,7 +54,7 @@ export function OrbInteriorView() {
         <Stars radius={80} depth={32} count={650} factor={2.7} saturation={0.24} fade speed={0.08} />
         <FloatingBookArchive orb={orb} opening={opening} onBookClick={handleBookClick} />
         <EffectComposer multisampling={0}>
-          <Bloom mipmapBlur luminanceThreshold={0.05} luminanceSmoothing={0.2} intensity={opening ? 1.9 : 1.35} radius={0.8} />
+          <Bloom mipmapBlur luminanceThreshold={0.08} luminanceSmoothing={0.24} intensity={opening ? 1.55 : 1.08} radius={0.74} />
           <Vignette eskil={false} offset={0.12} darkness={0.82} />
         </EffectComposer>
       </Canvas>

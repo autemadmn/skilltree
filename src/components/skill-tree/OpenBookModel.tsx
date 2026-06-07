@@ -36,6 +36,8 @@ const textureRedirects: Record<string, string> = {
   "book texture 3 normal map.jpg": "/models/old-open-book/textures/texture-3-normal.jpg"
 };
 
+const AUXILIARY_BOOK_MESH_PATTERN = /(^|[_\-\s])(background|ground|floor|plane|shadow|support|helper)([_\-\s]|\d|$)/i;
+
 function createBookLoader() {
   const manager = new THREE.LoadingManager();
   manager.setURLModifier((url) => {
@@ -48,13 +50,27 @@ function createBookLoader() {
   return loader;
 }
 
+function isAuxiliaryBookMesh(mesh: THREE.Mesh) {
+  const materialNames = (Array.isArray(mesh.material) ? mesh.material : [mesh.material])
+    .filter(Boolean)
+    .map((material) => material.name)
+    .join(" ");
+  return AUXILIARY_BOOK_MESH_PATTERN.test(`${mesh.name} ${materialNames}`);
+}
+
 function prepareBookModel(source: THREE.Group, auraColor: string) {
   const clone = source.clone(true);
   const normalizedGroup = new THREE.Group();
+  const auxiliaryMeshes: THREE.Mesh[] = [];
 
   clone.traverse((child) => {
     const mesh = child as THREE.Mesh;
     if (!mesh.isMesh) return;
+    if (isAuxiliaryBookMesh(mesh)) {
+      auxiliaryMeshes.push(mesh);
+      return;
+    }
+
     mesh.castShadow = true;
     mesh.receiveShadow = true;
 
@@ -71,14 +87,16 @@ function prepareBookModel(source: THREE.Group, auraColor: string) {
       if ("roughness" in standard) standard.roughness = Math.max(standard.roughness ?? 0.7, 0.72);
       if ("metalness" in standard) standard.metalness = Math.min(standard.metalness ?? 0.04, 0.06);
       standard.side = THREE.DoubleSide;
+      if ("color" in standard) standard.color.lerp(new THREE.Color("#f3e7ff"), 0.035);
       if ("emissive" in standard) {
         standard.emissive = new THREE.Color(auraColor);
-        standard.emissiveIntensity = 0.018;
+        standard.emissiveIntensity = 0.026;
       }
       material.needsUpdate = true;
     });
   });
 
+  auxiliaryMeshes.forEach((mesh) => mesh.parent?.remove(mesh));
   clone.updateMatrixWorld(true);
   // The source FBX has an off-center pivot; normalize by bounds so the wrapper can stay at the portal origin.
   const box = new THREE.Box3().setFromObject(clone);

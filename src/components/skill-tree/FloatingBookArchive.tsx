@@ -1,9 +1,30 @@
 import { Text } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { Suspense, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { OrbNode } from "../../types/models";
 import { OpenBookModel } from "./OpenBookModel";
+
+function createSoftCircleTexture() {
+  if (typeof document === "undefined") return null;
+  const canvas = document.createElement("canvas");
+  canvas.width = 192;
+  canvas.height = 192;
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+
+  const gradient = context.createRadialGradient(96, 96, 0, 96, 96, 94);
+  gradient.addColorStop(0, "rgba(255, 255, 255, 0.95)");
+  gradient.addColorStop(0.34, "rgba(255, 255, 255, 0.36)");
+  gradient.addColorStop(0.68, "rgba(255, 255, 255, 0.11)");
+  gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
+}
 
 function MagicalRings({ color, hovered, opening }: { color: string; hovered: boolean; opening: boolean }) {
   const groupRef = useRef<THREE.Group>(null);
@@ -34,7 +55,7 @@ function MagicalRings({ color, hovered, opening }: { color: string; hovered: boo
 function ParticleAura({ color, hovered, opening }: { color: string; hovered: boolean; opening: boolean }) {
   const pointsRef = useRef<THREE.Points>(null);
   const particleData = useMemo(() => {
-    const count = 128;
+    const count = 96;
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const baseColor = new THREE.Color(color);
@@ -43,11 +64,11 @@ function ParticleAura({ color, hovered, opening }: { color: string; hovered: boo
 
     for (let index = 0; index < count; index += 1) {
       const angle = (index / count) * Math.PI * 2;
-      const radius = 1.05 + Math.random() * 2.35;
-      const vertical = (Math.random() - 0.5) * 1.42;
-      positions[index * 3] = Math.cos(angle) * radius + (Math.random() - 0.5) * 0.18;
+      const radius = 0.82 + Math.random() * 1.95;
+      const vertical = -0.28 + Math.random() * 1.24;
+      positions[index * 3] = Math.cos(angle) * radius + (Math.random() - 0.5) * 0.13;
       positions[index * 3 + 1] = vertical;
-      positions[index * 3 + 2] = Math.sin(angle) * radius * 0.78 + (Math.random() - 0.5) * 0.18;
+      positions[index * 3 + 2] = Math.sin(angle) * radius * 0.72 + (Math.random() - 0.5) * 0.13;
 
       const mixed = (index % 5 === 0 ? white : index % 2 === 0 ? baseColor : violet).clone();
       colors[index * 3] = mixed.r;
@@ -74,7 +95,7 @@ function ParticleAura({ color, hovered, opening }: { color: string; hovered: boo
         size={opening ? 0.075 : hovered ? 0.065 : 0.052}
         vertexColors
         transparent
-        opacity={opening ? 0.72 : hovered ? 0.58 : 0.42}
+        opacity={opening ? 0.62 : hovered ? 0.5 : 0.34}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
       />
@@ -82,8 +103,43 @@ function ParticleAura({ color, hovered, opening }: { color: string; hovered: boo
   );
 }
 
+function PortalMist({ color, hovered, opening }: { color: string; hovered: boolean; opening: boolean }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const texture = useMemo(() => createSoftCircleTexture(), []);
+
+  useEffect(() => () => texture?.dispose(), [texture]);
+
+  useFrame(({ clock }, delta) => {
+    if (!groupRef.current) return;
+    const time = clock.getElapsedTime();
+    groupRef.current.rotation.z += delta * 0.018;
+    groupRef.current.position.y = Math.sin(time * 0.42) * 0.035;
+  });
+
+  if (!texture) return null;
+
+  const opacity = opening ? 0.25 : hovered ? 0.19 : 0.135;
+
+  return (
+    <group ref={groupRef} position={[0, 0.02, -0.24]}>
+      <sprite position={[0, 0.08, -0.12]} scale={[4.5, 2.35, 1]}>
+        <spriteMaterial map={texture} color={color} transparent opacity={opacity} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} />
+      </sprite>
+      <sprite position={[-0.55, -0.02, 0.08]} scale={[2.65, 1.25, 1]}>
+        <spriteMaterial map={texture} color="#efe6ff" transparent opacity={opacity * 0.62} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} />
+      </sprite>
+      <sprite position={[0.64, 0.14, 0.02]} scale={[2.25, 1.05, 1]}>
+        <spriteMaterial map={texture} color="#b993ff" transparent opacity={opacity * 0.54} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} />
+      </sprite>
+    </group>
+  );
+}
+
 function BookAura({ color, hovered, opening }: { color: string; hovered: boolean; opening: boolean }) {
   const ref = useRef<THREE.Mesh>(null);
+  const texture = useMemo(() => createSoftCircleTexture(), []);
+
+  useEffect(() => () => texture?.dispose(), [texture]);
 
   useFrame(({ clock }) => {
     if (!ref.current) return;
@@ -91,15 +147,19 @@ function BookAura({ color, hovered, opening }: { color: string; hovered: boolean
     ref.current.scale.setScalar((opening ? 1.55 : hovered ? 1.24 : 1) * pulse);
   });
 
+  if (!texture) return null;
+
   return (
-    <mesh ref={ref} position={[0, -0.18, -0.32]} rotation={[-Math.PI / 2, 0, 0]}>
+    <mesh ref={ref} position={[0, -0.48, -0.2]} rotation={[-Math.PI / 2, 0, 0]}>
       <circleGeometry args={[2.35, 96]} />
       <meshBasicMaterial
         color={color}
+        map={texture}
         transparent
-        opacity={opening ? 0.22 : hovered ? 0.17 : 0.1}
+        opacity={opening ? 0.3 : hovered ? 0.23 : 0.15}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
+        side={THREE.DoubleSide}
       />
     </mesh>
   );
@@ -148,7 +208,10 @@ export function FloatingBookArchive({
       </mesh>
       <pointLight color={orb.color} intensity={isOpening ? 10 : hovered ? 8.2 : 6.8} distance={18} />
       <pointLight position={[0, 4.2, 4]} color="#b993ff" intensity={hovered ? 4.8 : 3.7} distance={14} />
+      <pointLight position={[-2.4, 1.05, 1.8]} color={orb.color} intensity={hovered ? 1.65 : 1.15} distance={5.8} />
+      <pointLight position={[2.2, 0.8, 2.4]} color="#fff3d2" intensity={hovered ? 1.1 : 0.72} distance={5.5} />
       <spotLight position={[0, 5.5, 5.2]} angle={0.58} penumbra={0.7} intensity={3.2} color="#f2e0b8" castShadow />
+      <PortalMist color={orb.color} hovered={hovered} opening={isOpening} />
       <BookAura color={orb.color} hovered={hovered} opening={isOpening} />
       <ParticleAura color={orb.color} hovered={hovered} opening={isOpening} />
       <MagicalRings color={orb.color} hovered={hovered} opening={isOpening} />
