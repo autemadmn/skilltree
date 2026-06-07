@@ -3,11 +3,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useKnowledgeStore } from "../../store/useKnowledgeStore";
 import type { OrbNode } from "../../types/models";
 import { CanvasCard } from "./CanvasCard";
-import { EmptyChamberState } from "./EmptyChamberState";
 
 type CardPositions = Record<string, { x: number; y: number }>;
 
-export function CanvasView({ orb }: { orb: OrbNode }) {
+export function CanvasView({ orb, onUploadPdf }: { orb: OrbNode; onUploadPdf?: () => void }) {
   const documents = useKnowledgeStore((state) => state.documents);
   const selectedDocumentId = useKnowledgeStore((state) => state.selectedDocumentId);
   const setSelectedDocument = useKnowledgeStore((state) => state.setSelectedDocument);
@@ -30,15 +29,11 @@ export function CanvasView({ orb }: { orb: OrbNode }) {
     });
   }, [docs]);
 
-  if (docs.length === 0) return <EmptyChamberState orb={orb} />;
-
   const docIds = useMemo(() => new Set(docs.map((document) => document.id)), [docs]);
   const links = useMemo(
     () =>
       docs.flatMap((document) =>
-        document.relatedDocumentIds
-          .filter((targetId) => docIds.has(targetId))
-          .map((targetId) => [document.id, targetId] as const)
+        document.relatedDocumentIds.filter((targetId) => docIds.has(targetId)).map((targetId) => [document.id, targetId] as const)
       ),
     [docIds, docs]
   );
@@ -62,42 +57,54 @@ export function CanvasView({ orb }: { orb: OrbNode }) {
       </div>
 
       <div className="canvas-surface">
-        <div className="canvas-space" style={{ transform: `scale(${scale})` }}>
-          <svg className="canvas-lines" viewBox="0 0 960 620" preserveAspectRatio="none">
-            {links.map(([sourceId, targetId]) => {
-              const source = positions[sourceId];
-              const target = positions[targetId];
-              if (!source || !target) return null;
-              return (
-                <path
-                  key={`${sourceId}-${targetId}`}
-                  d={`M ${source.x + 118} ${source.y + 70} C ${source.x + 210} ${source.y - 30}, ${target.x - 80} ${
-                    target.y + 160
-                  }, ${target.x + 118} ${target.y + 70}`}
-                />
-              );
-            })}
-          </svg>
-          {docs.map((document) => (
-            <CanvasCard
-              key={document.id}
-              document={document}
-              position={positions[document.id] ?? { x: 0, y: 0 }}
-              selected={selectedDocumentId === document.id}
-              onSelect={() => setSelectedDocument(document.id)}
-              onDelete={() => deleteDocument(document.id)}
-              onMove={(id, info) =>
-                setPositions((current) => ({
-                  ...current,
-                  [id]: {
-                    x: (current[id]?.x ?? 0) + info.offset.x,
-                    y: (current[id]?.y ?? 0) + info.offset.y
-                  }
-                }))
-              }
-            />
-          ))}
-        </div>
+        {docs.length === 0 ? (
+          <div className="canvas-empty-state">
+            <h2>No hay nodos todavia</h2>
+            <p>Sube el primer PDF para que aparezca aqui como nodo conectado a esta camara.</p>
+            {onUploadPdf && (
+              <button className="toolbar-button primary" onClick={onUploadPdf}>
+                Anadir PDF
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="canvas-space" style={{ transform: `scale(${scale})` }}>
+            <svg className="canvas-lines" viewBox="0 0 960 620" preserveAspectRatio="none">
+              {links.map(([sourceId, targetId]) => {
+                const source = positions[sourceId];
+                const target = positions[targetId];
+                if (!source || !target) return null;
+                return (
+                  <path
+                    key={`${sourceId}-${targetId}`}
+                    d={`M ${source.x + 118} ${source.y + 70} C ${source.x + 210} ${source.y - 30}, ${target.x - 80} ${
+                      target.y + 160
+                    }, ${target.x + 118} ${target.y + 70}`}
+                  />
+                );
+              })}
+            </svg>
+            {docs.map((document) => (
+              <CanvasCard
+                key={document.id}
+                document={document}
+                position={positions[document.id] ?? { x: 0, y: 0 }}
+                selected={selectedDocumentId === document.id}
+                onSelect={() => setSelectedDocument(document.id)}
+                onDelete={() => deleteDocument(document.id)}
+                onMove={(id, info) =>
+                  setPositions((current) => ({
+                    ...current,
+                    [id]: {
+                      x: (current[id]?.x ?? 0) + info.offset.x,
+                      y: (current[id]?.y ?? 0) + info.offset.y
+                    }
+                  }))
+                }
+              />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

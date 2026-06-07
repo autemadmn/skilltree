@@ -54,7 +54,8 @@ export interface VisualAttachment {
   documentId: string;
   title: string;
   description?: string;
-  dataUrl: string;
+  blobId?: string;
+  dataUrl?: string;
   mimeType: string;
   fileName: string;
   fileSize: number;
@@ -80,6 +81,7 @@ export interface KnowledgeDocument {
     source?: string;
     summary?: string;
     originalFileName?: string;
+    blobId?: string;
     vaultPath?: string;
     fileSize?: number;
     mimeType?: string;

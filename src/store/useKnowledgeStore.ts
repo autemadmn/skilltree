@@ -16,15 +16,16 @@ import type {
   VisualAttachment
 } from "../types/models";
 
-export type ChamberView = "overview" | "library" | "pdfs" | "notes" | "favorites" | "recent" | "linked" | "canvas" | "settings";
+export type ChamberView = "library" | "canvas";
 
 type UploadedPdfInput = {
-  vaultPath: string;
   originalFileName: string;
   fileName: string;
   fileSize: number;
   mimeType: string;
   savedAt: string;
+  blobId?: string;
+  vaultPath?: string;
 };
 
 interface KnowledgeState extends KnowledgeSnapshot {
@@ -429,17 +430,20 @@ export const useKnowledgeStore = create<KnowledgeState>()(
             orbId,
             title,
             type: "pdf",
-            subtitle: "Stored in the portable local vault",
+            subtitle: file.vaultPath ? "Stored in the portable local vault" : "Stored locally in this browser",
             tags: [orb.title.toLowerCase(), "pdf"],
             createdAt: now(),
             updatedAt: now(),
             thumbnail: "PDF",
-            fileUrl: `vault://${file.vaultPath}`,
+            fileUrl: file.vaultPath ? `vault://${file.vaultPath}` : file.blobId ? `indexeddb://${file.blobId}` : "",
             metadata: {
               pages: 1,
               readingTime: "Ready to read",
-              summary: "This PDF has been copied into the selected local vault folder.",
+              summary: file.vaultPath
+                ? "This PDF has been copied into the selected local vault folder."
+                : "This PDF is stored in the app's local browser file store.",
               originalFileName: file.originalFileName,
+              blobId: file.blobId,
               vaultPath: file.vaultPath,
               fileSize: file.fileSize,
               mimeType: file.mimeType,
@@ -666,6 +670,7 @@ export const useKnowledgeStore = create<KnowledgeState>()(
         return {
           ...current,
           ...persistedState,
+          chamberView: persistedState?.chamberView === "canvas" ? "canvas" : "library",
           settings: normalizeSettings(persistedState?.settings)
         };
       },
